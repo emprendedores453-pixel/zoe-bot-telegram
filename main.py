@@ -22,6 +22,9 @@ CRISIS_RESPONSE = "Si estás en crisis, llama: 024 (ES) | 800 290 0024 (MX) | 98
 historiales = {}
 
 @app.route("/")
+@app.route("/setup")
+def setup_webhook():
+    return "Webhook setup complete"
 def home():
     return "Zoe is alive"
 

@@ -4,19 +4,17 @@ from groq import Groq
 import re
 from flask import Flask, request, jsonify
 
-# 🔑 TUS LLAVES (se leen desde variables de entorno de Render)
+# API Keys from environment variables
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# Verificar que las variables existan
 if not TELEGRAM_TOKEN or not GROQ_API_KEY:
-    raise Exception("❌ Faltan las variables TELEGRAM_TOKEN o GROQ_API_KEY en Render")
+    raise Exception("Missing TELEGRAM_TOKEN or GROQ_API_KEY environment variables")
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN, threaded=False)
 client = Groq(api_key=GROQ_API_KEY)
 app = Flask(__name__)
 
-# 📜 PROMPT MAESTRO v4.0 — EVANGELIO COMPLETO
 SYSTEM_PROMPT = """
 ERES ZOE ("VIDA"). TU PROPÓSITO: ACOMPAÑAR CON PROFUNDIDAD Y GUIAR AL CORAZÓN DE JESÚS CON URGENCIA AMOROSA.
 
@@ -40,9 +38,9 @@ ESTRUCTURA OBLIGATORIA DEL EVANGELIO (Úsala tal cual cuando haya apertura):
 - Conecta el corazón con la verdad bíblica. Evita respuestas robóticas o excesivamente breves.
 - Si el usuario NO muestra apertura, acompaña con empatía y siembra suavemente.
 
- PROTOCOLO DE CRISIS (PRIORIDAD ABSOLUTA):
+🚨 PROTOCOLO DE CRISIS (PRIORIDAD ABSOLUTA):
 Si detectas suicidio, abuso o peligro físico → Responde INMEDIATAMENTE:
-"🚨 Esto es muy importante. Por favor, llama ahora: 🇪🇸 024 | 🇲🇽 800 290 0024 | 🇦🇷 135 | 🇴 106 | 🇺🇸 988 | 🇨 600 360 7777 | 🌍 befrienders.org. No estás solo. Estoy orando por ti."
+"🚨 Esto es muy importante. Por favor, llama ahora: 🇪🇸 024 | 🇲🇽 800 290 0024 | 🇦🇷 135 | 🇨 106 | 🇺🇸 988 | 🇨🇱 600 360 7777 | 🌍 befrienders.org. No estás solo. Estoy orando por ti."
 No evangelices en crisis aguda. Vida primero. Después, retoma el acompañamiento.
 
 ⚠️ LÍMITES ÉTICOS:
@@ -53,11 +51,35 @@ No evangelices en crisis aguda. Vida primero. Después, retoma el acompañamient
 ✅ El Espíritu Santo convence; tú solo proclamas la verdad con claridad y amor.
 """
 
-# 🛡️ FILTRO DE CRISIS POR CÓDIGO
 CRISIS_PATTERNS = [r'suicid', r'matarme', r'quitarme la vida', r'me quiero morir', r'abusaron', r'abuso', r'me golpean', r'peligro', r'me van a matar', r'cortar']
-CRISIS_RESPONSE = "🚨 *PROTOCOLO DE CRISIS ACTIVADO*\n\nEsto es muy importante. Por favor, llama ahora:\n🇪 024 | 🇲 800 290 0024 | 🇦🇷 135 | 🇨🇴 106 | 🇺🇸 988 | 🇱 600 360 7777 | 🌍 befrienders.org\n\nNo estás solo. Estoy orando por ti."
+CRISIS_RESPONSE = "🚨 *PROTOCOLO DE CRISIS ACTIVADO*\n\nEsto es muy importante. Por favor, llama ahora:\n🇪🇸 024 | 🇽 800 290 0024 | 🇦 135 | 🇨🇴 106 | 🇺🇸 988 | 🇨🇱 600 360 7777 |  befrienders.org\n\nNo estás solo. Estoy orando por ti."
 
 historiales = {}
+
+@app.route("/")
+def home():
+    return " Zoe está viva y escuchando en Telegram."
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    try:
+        update = telebot.types.Update.de_json(request.get_json(force=True))
+        bot.process_new_updates([update])
+        return "", 200
+    except Exception as e:
+        print("🚨 WEBHOOK ERROR:", e)
+        return "", 403
+
+@app.route("/setup", methods=["GET"])
+def setup():
+    webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'zoe-bot-qpm0.onrender.com')}/webhook"
+    bot.remove_webhook()
+    bot.set_webhook(url=webhook_url)
+    return jsonify({
+        "status": "success",
+        "webhook_url": webhook_url,
+        "message": "Webhook configurado correctamente"
+    })
 
 @bot.message_handler(commands=['start', 'inicio'])
 def send_welcome(message):
@@ -71,7 +93,6 @@ def responder(message):
     if chat_id not in historiales:
         historiales[chat_id] = []
 
-    # 1. Red de Seguridad Técnica
     if any(re.search(p, texto_usuario.lower()) for p in CRISIS_PATTERNS):
         bot.send_message(chat_id, CRISIS_RESPONSE, parse_mode='Markdown')
         return
@@ -100,39 +121,9 @@ def responder(message):
         bot.reply_to(message, respuesta_zoe)
         
     except Exception as e:
-        print("🚨 ERROR DEL CEREBRO:", e)
+        print("🚨 ERROR:", e)
         bot.reply_to(message, f"Error: {e}")
 
-#  RUTA 1: Health check para UptimeRobot y navegador
-@app.route("/")
-def home():
-    return "🟢 Zoe está viva y escuchando en Telegram."
-
-#  RUTA 2: Webhook de Telegram (así Telegram envía los mensajes)
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    try:
-        update = telebot.types.Update.de_json(request.get_json(force=True))
-        bot.process_new_updates([update])
-        return "", 200
-    except Exception as e:
-        print("🚨 ERROR WEBHOOK:", e)
-        return "", 403
-
-# 🚀 Arranque del servidor
-@app.route("/setup", methods=["GET"])
-def setup():
-    """Endpoint para configurar el webhook manualmente"""
-    webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'zoe-bot-qpm0.onrender.com')}/webhook"
-    bot.remove_webhook()
-    bot.set_webhook(url=webhook_url)
-    return jsonify({
-        "status": "success",
-        "webhook_url": webhook_url,
-        "message": "Webhook configurado correctamente"
-    })
-
 if __name__ == "__main__":
-    # Obtener hostname desde Render
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)

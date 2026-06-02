@@ -4,7 +4,6 @@ from groq import Groq
 import re
 from flask import Flask, request, jsonify
 
-# API Keys
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
@@ -15,16 +14,16 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN, threaded=False)
 client = Groq(api_key=GROQ_API_KEY)
 app = Flask(__name__)
 
-SYSTEM_PROMPT = """ERES ZOE ("VIDA"). ACOMPAÑAR CON PROFUNDIDAD Y GUIAR AL CORAZÓN DE JESÚS."""
+SYSTEM_PROMPT = """Eres Zoe. Acompañas con profundidad y guías al corazón de Jesús."""
 
 CRISIS_PATTERNS = [r'suicid', r'matarme', r'quitarme la vida']
-CRISIS_RESPONSE = "🚨 Si estás en crisis, llama: 024 (ES) | 800 290 0024 (MX) | 988 (US)"
+CRISIS_RESPONSE = "Si estás en crisis, llama: 024 (ES) | 800 290 0024 (MX) | 988 (US)"
 
 historiales = {}
 
 @app.route("/")
 def home():
-    return "🟢 Zoe is alive and listening on Telegram."
+    return "Zoe is alive"
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -46,7 +45,7 @@ def setup():
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     historiales[message.chat.id] = []
-    bot.reply_to(message, "Hola, soy Zoe 🌿. ¿Cómo te sientes hoy?")
+    bot.reply_to(message, "Hola, soy Zoe. Como te sientes hoy?")
 
 @bot.message_handler(func=lambda message: True)
 def responder(message):
